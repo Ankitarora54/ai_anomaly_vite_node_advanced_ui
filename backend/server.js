@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 console.log("OpenAI API Key:", process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY : "Not Loaded");
 const upload = multer({ dest: 'uploads/' });
-
+const PORT = process.env.PORT || 5000;
 async function getAIExplanation(row, mean) {
   const prompt = `
   NAV: ${row.NAV}
@@ -108,4 +108,5 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 //     });
 // });
 
-app.listen(5000, () => console.log('Server running on port 5000'));
+app.listen(PORT, () => {console.log(`Server running on ${PORT}`);});
+//app.listen(5000, () => console.log('Server running on port 5000'));
