@@ -49,6 +49,48 @@ function buildExplanation(context) {
   return `Anomaly: ${reasonParts.join('. ')}.`
 }
 
+async function getAIExplanation(row, context) {
+  const fallbackExplanation = buildExplanation(context);
+
+  if (!process.env.OPENAI_API_KEY) {
+    return fallbackExplanation;
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You explain fund-accounting NAV anomalies in concise, business-friendly language. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
+        },
+        {
+          role: "user",
+          content: `
+Date: ${row.Date}
+NAV: ${row.NAV}
+Cash: ${row.Cash}
+Trades: ${row.Trades}
+FX Rate: ${row.FX_Rate}
+Rolling median NAV: ${context.rollingMedian}
+Modified z-score: ${context.modifiedZScore}
+Day-over-day NAV change: ${context.dayOverDayChangePercent}%
+Detection reason: ${context.detectionReason}
+
+Explain why this row may be anomalous in business terms for operations or fund accounting review.
+          `.trim()
+        }
+      ]
+    });
+
+    return response.choices[0]?.message?.content?.trim() || fallbackExplanation;
+  } catch (error) {
+    console.error("OpenAI explanation failed:", error.message);
+    return fallbackExplanation;
+  }
+}
+
 
 async function detectAnomalies(data) {
   const results = [];
@@ -76,13 +118,17 @@ async function detectAnomalies(data) {
         ].filter(Boolean).join(' + ')
       : 'Within rolling range';
 
-    const explanation = buildExplanation({
+    const explanationContext = {
       rollingAnomaly,
       dayChangeAnomaly,
       rollingMedian: Number(rollingMedian.toFixed(2)),
       modifiedZScore: Number(modifiedZScore.toFixed(2)),
       dayOverDayChangePercent: Number((dayOverDayChange * 100).toFixed(2)),
-    });
+      detectionReason,
+    };
+    const explanation = anomaly
+      ? await getAIExplanation(row, explanationContext)
+      : buildExplanation(explanationContext);
 
     results.push({
       ...row,
