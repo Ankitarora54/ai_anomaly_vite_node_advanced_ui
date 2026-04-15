@@ -12,42 +12,85 @@ app.use(cors());
 console.log("OpenAI API Key:", process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY : "Not Loaded");
 const upload = multer({ dest: 'uploads/' });
 const PORT = process.env.PORT || 5000;
-async function getAIExplanation(row, mean) {
-  const prompt = `
-  NAV: ${row.NAV}
-  Mean NAV: ${mean}
+const ROLLING_WINDOW_SIZE = 5;
+const MODIFIED_Z_SCORE_THRESHOLD = 3.5;
+const DAY_OVER_DAY_CHANGE_THRESHOLD = 0.05;
 
-  Explain briefly why this could be an anomaly in fund accounting.
-  `;
+function getMedian(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }]
-  });
+  if (sorted.length % 2 === 0) {
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  }
 
-  return response.choices[0].message.content;
+  return sorted[middle];
+}
+
+function buildExplanation(context) {
+  const reasonParts = [];
+
+  if (context.rollingAnomaly) {
+    reasonParts.push(
+      `NAV is materially out of line with the recent valuation pattern and may reflect a pricing break, missing trade, stale position, or corporate action not captured correctly`
+    );
+  }
+
+  if (context.dayChangeAnomaly) {
+    reasonParts.push(
+      `NAV moved sharply versus the prior day and should be reviewed for late postings, cash movement, FX impact, security revaluation, or booking issues`
+    );
+  }
+
+  if (reasonParts.length === 0) {
+    return `Normal: NAV is broadly consistent with recent activity and does not show an unusual day-over-day movement.`
+  }
+
+  return `Anomaly: ${reasonParts.join('. ')}.`
 }
 
 
 async function detectAnomalies(data) {
-  const navs = data.map(d => parseFloat(d.NAV));
-  const mean = navs.reduce((a,b)=>a+b,0)/navs.length;
-  const std = Math.sqrt(navs.map(x => Math.pow(x-mean,2)).reduce((a,b)=>a+b,0)/navs.length);
-
   const results = [];
 
-  for (const row of data) {
-    const z = (row.NAV - mean)/std;
-    const anomaly = Math.abs(z) > 1;
+  for (let index = 0; index < data.length; index += 1) {
+    const row = data[index];
+    const rollingWindow = data
+      .slice(Math.max(0, index - ROLLING_WINDOW_SIZE), index)
+      .map((item) => parseFloat(item.NAV));
+    const rollingMedian = rollingWindow.length > 0 ? getMedian(rollingWindow) : row.NAV;
+    const absoluteDeviations = rollingWindow.map((value) => Math.abs(value - rollingMedian));
+    const mad = absoluteDeviations.length > 0 ? getMedian(absoluteDeviations) : 0;
+    const modifiedZScore = mad === 0 ? 0 : 0.6745 * (row.NAV - rollingMedian) / mad;
+    const previousNav = index > 0 ? parseFloat(data[index - 1].NAV) : null;
+    const dayOverDayChange = previousNav && previousNav !== 0
+      ? (row.NAV - previousNav) / previousNav
+      : 0;
+    const rollingAnomaly = rollingWindow.length >= 3 && Math.abs(modifiedZScore) > MODIFIED_Z_SCORE_THRESHOLD;
+    const dayChangeAnomaly = index > 0 && Math.abs(dayOverDayChange) > DAY_OVER_DAY_CHANGE_THRESHOLD;
+    const anomaly = rollingAnomaly || dayChangeAnomaly;
+    const detectionReason = anomaly
+      ? [
+          rollingAnomaly ? 'Rolling median/MAD' : null,
+          dayChangeAnomaly ? 'Day-over-day change > 5%' : null,
+        ].filter(Boolean).join(' + ')
+      : 'Within rolling range';
 
-    let explanation = "Normal: NAV within expected range";
-
-    if (anomaly) {
-      explanation = await getAIExplanation(row, mean);
-    }
+    const explanation = buildExplanation({
+      rollingAnomaly,
+      dayChangeAnomaly,
+      rollingMedian: Number(rollingMedian.toFixed(2)),
+      modifiedZScore: Number(modifiedZScore.toFixed(2)),
+      dayOverDayChangePercent: Number((dayOverDayChange * 100).toFixed(2)),
+    });
 
     results.push({
       ...row,
+      rolling_median_nav: Number(rollingMedian.toFixed(2)),
+      mad: Number(mad.toFixed(2)),
+      modified_z_score: Number(modifiedZScore.toFixed(2)),
+      day_over_day_change_pct: Number((dayOverDayChange * 100).toFixed(2)),
+      detection_reason: detectionReason,
       anomaly_flag: anomaly,
       explanation
     });
