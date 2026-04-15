@@ -219,6 +219,20 @@ body {
   border-radius: 999px;
 }
 
+.env-warning {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 241, 214, 0.92), rgba(255, 250, 240, 0.92));
+  color: #7c4a03;
+}
+
+.env-warning p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 .data-section {
   margin-top: 24px;
   padding: 22px;

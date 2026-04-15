@@ -6,7 +6,7 @@ import sampleFileUrl from '../sample/samplefile.csv?url'
 import './App.css'
 
 function App() {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+  const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')
   const previewPageSize = 10
   const resultsPageSize = 10
   const rollingWindowSize = 5
@@ -158,7 +158,7 @@ function App() {
   }
 
   const uploadFile = async () => {
-    if (!file) return
+    if (!file || !apiUrl) return
 
     setIsUploading(true)
 
@@ -217,9 +217,18 @@ function App() {
           </div>
           <div className="button-row">
             <button className="secondary-button" onClick={useSampleFile}>Use Sample File</button>
-            <button className="primary-button" onClick={uploadFile} disabled={!file}>Upload</button>
+            <button className="primary-button" onClick={uploadFile} disabled={!file || !apiUrl}>Upload</button>
           </div>
         </section>
+
+        {!apiUrl && (
+          <div className="env-warning">
+            <span className="chip-label">Configuration Needed</span>
+            <p>
+              Set <strong>VITE_API_URL</strong> in your frontend environment so the deployed app can reach the backend.
+            </p>
+          </div>
+        )}
 
         {file && (
           <div className="selected-file-chip">
