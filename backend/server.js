@@ -63,7 +63,7 @@ async function getAIExplanation(row, context) {
         {
           role: "system",
           content:
-            "You explain fund-accounting NAV anomalies in concise, business-friendly language. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
+            "You explain fund-accounting NAV anomalies in concise, simple language. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
         },
         {
           role: "user",
