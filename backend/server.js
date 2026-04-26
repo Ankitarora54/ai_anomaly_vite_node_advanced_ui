@@ -78,7 +78,7 @@ Modified z-score: ${context.modifiedZScore}
 Day-over-day NAV change: ${context.dayOverDayChangePercent}%
 Detection reason: ${context.detectionReason}
 
-Explain why this row may be anomalous in business terms for operations or fund accounting review based on trades,cash,holdings,fees and fx_rates files from sample folder.
+Explain why this row may be anomalous in business terms for operations or fund accounting review based on trades,cash,holdings,fees and fx_rates files from sample folder.Suggest the specific trades,cash,holdings,fees and fx_rates factors that may have contributed to the anomaly and what to review in 1-2 sentences.
           `.trim()
         }
       ]
