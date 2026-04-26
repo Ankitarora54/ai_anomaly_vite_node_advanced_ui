@@ -16,6 +16,16 @@ const ROLLING_WINDOW_SIZE = 5;
 const MODIFIED_Z_SCORE_THRESHOLD = 3.5;
 const DAY_OVER_DAY_CHANGE_THRESHOLD = 0.05;
 
+function loadSampleData() {
+  return {
+    trades: fs.readFileSync('./sample/trades.csv', 'utf-8'),
+    cash: fs.readFileSync('./sample/cash.csv', 'utf-8'),
+    holdings: fs.readFileSync('./sample/holdings.csv', 'utf-8'),
+    fx: fs.readFileSync('./sample/fx_rates.csv', 'utf-8'),
+    fees: fs.readFileSync('./sample/fees.csv', 'utf-8')
+  };
+}
+
 function getMedian(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
@@ -55,30 +65,48 @@ async function getAIExplanation(row, context) {
   if (!process.env.OPENAI_API_KEY) {
     return fallbackExplanation;
   }
-
+  const sampleData = loadSampleData();
   try {
+
     const response = await client.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "Use the trades,cash,holdings,fees and fx_rates files from sample folder to reconcile the data and explain fund-accounting NAV anomalies in concise, simple language, mappping the anomalies to specific trades/cahs movements/fx rates. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
+            `You are a fund accounting expert. Use the following datasets to reconcile and explain fund-accounting NAV anomalies in concise, simple language, mappping the anomalies to specific values of holdings/trades/cash movements/fx rates. Avoid technical statistics jargon unless needed.
+            Steps:
+            1. Reconcile NAV using holdings × price × FX
+            2. Check if trades explain holdings change
+            3. Check if cash matches trades (T+1)
+            4. Check FX impact
+            5. Check fees impact
+            Then explain the MOST LIKELY cause in 1-2 sentences with numbers.
+              --- TRADES ---
+              ${sampleData.trades}
+              --- CASH ---
+              ${sampleData.cash}
+              --- HOLDINGS ---
+              ${sampleData.holdings}
+              --- FX RATES ---
+              ${sampleData.fx}
+              --- FEES ---
+              ${sampleData.fees} `
         },
         {
           role: "user",
           content: `
-Date: ${row.Date}
-NAV: ${row.NAV}
-Cash: ${row.Cash}
-Trades: ${row.Trades}
-FX Rate: ${row.FX_Rate}
-Rolling median NAV: ${context.rollingMedian}
-Modified z-score: ${context.modifiedZScore}
-Day-over-day NAV change: ${context.dayOverDayChangePercent}%
-Detection reason: ${context.detectionReason}
+              Date: ${row.Date}
+              NAV: ${row.NAV}
+              Cash: ${row.Cash}
+              Trades: ${row.Trades}
+              FX Rate: ${row.FX_Rate}
+              Rolling median NAV: ${context.rollingMedian}
+              Modified z-score: ${context.modifiedZScore}
+              Day-over-day NAV change: ${context.dayOverDayChangePercent}%
+              Detection reason: ${context.detectionReason}
 
-Review the dataset on trades,cash,holdings,fees and fx_rates files from sample folder.Suggest the specific trades,cash,holdings,fees and fx_rates factors with numbersthat may have contributed to the anomaly and which specific area to review in 1-2 sentences.Explain why this row may be anomalous in business terms for operations or fund accounting review.
+              Explain why this row may be anomalous in business terms for operations or fund accounting review.
           `.trim()
         }
       ]
