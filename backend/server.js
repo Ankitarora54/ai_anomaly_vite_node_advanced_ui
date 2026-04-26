@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 const OpenAI = require("openai");
 //const client = new OpenAI({ apiKey: "YOUR_API_KEY" });
@@ -16,13 +17,15 @@ const ROLLING_WINDOW_SIZE = 5;
 const MODIFIED_Z_SCORE_THRESHOLD = 3.5;
 const DAY_OVER_DAY_CHANGE_THRESHOLD = 0.05;
 
+
 function loadSampleData() {
   return {
-    trades: fs.readFileSync('./sample/trades.csv', 'utf-8'),
-    cash: fs.readFileSync('./sample/cash.csv', 'utf-8'),
-    holdings: fs.readFileSync('./sample/holdings.csv', 'utf-8'),
-    fx: fs.readFileSync('./sample/fx_rates.csv', 'utf-8'),
-    fees: fs.readFileSync('./sample/fees.csv', 'utf-8')
+    trades: fs.readFileSync(path.join(__dirname, '../frontend/sample/trades.csv'),'utf-8'),
+    //trades: fs.readFileSync('./sample/trades.csv', 'utf-8'),
+    cash: fs.readFileSync(path.join(__dirname, '../frontend/sample/cash.csv'), 'utf-8'),
+    holdings: fs.readFileSync(path.join(__dirname, '../frontend/sample/holdings.csv'), 'utf-8'),
+    fx: fs.readFileSync(path.join(__dirname, '../frontend/sample/fx_rates.csv'), 'utf-8'),
+    fees: fs.readFileSync(path.join(__dirname, '../frontend/sample/fees.csv'), 'utf-8')
   };
 }
 
