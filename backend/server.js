@@ -63,7 +63,7 @@ async function getAIExplanation(row, context) {
         {
           role: "system",
           content:
-            "Use the trades,cash,holdings and fx_rates files from sample folder to reconcile the data and explain fund-accounting NAV anomalies in concise, simple language, mappping the anomalies to specific trades/cahs movements/fx rates. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
+            "Use the trades,cash,holdings,fees and fx_rates files from sample folder to reconcile the data and explain fund-accounting NAV anomalies in concise, simple language, mappping the anomalies to specific trades/cahs movements/fx rates. Avoid technical statistics jargon unless needed. Keep the answer to 1-2 sentences."
         },
         {
           role: "user",
@@ -78,7 +78,7 @@ Modified z-score: ${context.modifiedZScore}
 Day-over-day NAV change: ${context.dayOverDayChangePercent}%
 Detection reason: ${context.detectionReason}
 
-Explain why this row may be anomalous in business terms for operations or fund accounting review.
+Explain why this row may be anomalous in business terms for operations or fund accounting review based on trades,cash,holdings,fees and fx_rates files from sample folder.
           `.trim()
         }
       ]
